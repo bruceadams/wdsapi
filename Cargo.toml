@@ -1,16 +1,19 @@
 [package]
-name = "wdcapi"
+name = "wdsapi"
 version = "0.1.0"
 authors = ["Bruce Adams <bruce.adams@acm.org>"]
 
-[dependencies]
-# This is our only dependency with a stable version number!
-clap = "~2.19.2"
-
 # The following dependencies are all 0.x versions.
 # 0.x means they make no promises, so we just grab the latest.
-chrono = { version = "*", features = ["serde"] }
-hyper = { version = "0.9.10", default-features = false }
+[dependencies.chrono]
+version = "*"
+features = ["serde"]
+
+[dependencies.hyper]
+version = "*"
+default-features = false
+
+[dependencies]
 hyper-rustls = "*"
 serde = "*"
 serde_derive = "*"

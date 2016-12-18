@@ -1,3 +1,12 @@
+#![feature(proc_macro)]
+
+extern crate chrono;
+extern crate hyper;
+extern crate hyper_rustls;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
+
 use chrono::{DateTime, UTC};
 use hyper::{Client, Error};
 use hyper::client::response::Response;
@@ -5,7 +14,6 @@ use hyper::header::{Authorization, Basic, Headers};
 use hyper::net::HttpsConnector;
 use hyper_rustls::TlsClient;
 use serde_json::de::from_reader;
-use std;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
