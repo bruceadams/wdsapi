@@ -1,5 +1,6 @@
 # wdsapi
 Rust API for the IBM Watson Discovery Service
+[![Build Status](https://travis-ci.org/bruceadams/wdsapi.svg?branch=master)](https://travis-ci.org/bruceadams/wdsapi)
 
 This project is platform for learning for me.
 
