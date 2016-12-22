@@ -76,6 +76,14 @@ pub struct Credentials {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
+pub struct DocumentCounts {
+    pub available: u64,
+    pub processing: u64,
+    pub failed: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct Collection {
     pub collection_id: String,
     pub name: String,
@@ -85,6 +93,7 @@ pub struct Collection {
     pub status: Status,
     pub configuration_id: String,
     pub language: String,
+    pub document_counts: Option<DocumentCounts>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -144,6 +153,15 @@ pub fn get_collections(creds: &Credentials,
                        env_id: &str)
                        -> Result<Collections, Box<std::error::Error>> {
     let res = try!(discovery_api(&creds, Some(env_id), "/collections"));
+    Ok(try!(from_reader(res)))
+}
+
+pub fn get_collection_detail(creds: &Credentials,
+                             env_id: &str,
+                             collection_id: &str)
+                             -> Result<Collection, Box<std::error::Error>> {
+    let path = "/collections/".to_string() + collection_id;
+    let res = try!(discovery_api(&creds, Some(env_id), &path));
     Ok(try!(from_reader(res)))
 }
 
