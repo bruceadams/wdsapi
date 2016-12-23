@@ -8,10 +8,10 @@ extern crate serde_derive;
 extern crate serde_json;
 
 use chrono::{DateTime, UTC};
-use hyper::{Client, Error};
-use hyper::client::response::Response;
+use hyper::Client;
 use hyper::header::{Authorization, Basic, Headers};
 use hyper::net::HttpsConnector;
+use hyper::status::StatusCode;
 use hyper_rustls::TlsClient;
 use serde_json::de::{from_reader, from_str};
 use serde_json::ser::to_string;
@@ -78,13 +78,6 @@ pub struct Environments {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Credentials {
-    pub url: String,
-    pub username: String,
-    pub password: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct DocumentCounts {
     pub available: u64,
@@ -128,30 +121,89 @@ pub struct Configurations {
     pub configurations: Vec<Configuration>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ServiceError {
+    pub code: u64,
+    pub error: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Credentials {
+    pub url: String,
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Debug)]
+pub struct ApiErrorDetail {
+    pub status_code: StatusCode,
+    pub service_error: ServiceError,
+}
+
+#[derive(Debug)]
+pub enum ApiError {
+    Service(ApiErrorDetail),
+    SerdeJson(serde_json::error::Error),
+    Io(std::io::Error),
+    Hyper(hyper::error::Error),
+}
+
+impl From<std::io::Error> for ApiError {
+    fn from(err: std::io::Error) -> ApiError {
+        ApiError::Io(err)
+    }
+}
+
+impl From<serde_json::error::Error> for ApiError {
+    fn from(err: serde_json::error::Error) -> ApiError {
+        ApiError::SerdeJson(err)
+    }
+}
+
+impl From<hyper::error::Error> for ApiError {
+    fn from(err: hyper::error::Error) -> ApiError {
+        ApiError::Hyper(err)
+    }
+}
+
+impl std::fmt::Display for ApiErrorDetail {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(&format!("{}: {}",
+                             self.status_code,
+                             self.service_error.error))
+    }
+}
+
+impl std::fmt::Display for ApiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match *self {
+            ApiError::Service(ref e) => std::fmt::Display::fmt(e, f),
+            ApiError::SerdeJson(ref e) => std::fmt::Display::fmt(e, f),
+            ApiError::Io(ref e) => std::fmt::Display::fmt(e, f),
+            ApiError::Hyper(ref e) => std::fmt::Display::fmt(e, f),
+        }
+    }
+}
+
+
 pub fn credentials_from_file(creds_file: &str)
-                             -> Result<Credentials, Box<std::error::Error>> {
+                             -> Result<Credentials, ApiError> {
     // I may wish to make the error messages more user friendly here.
     Ok(try!(from_reader(try!(std::fs::File::open(creds_file)))))
 }
 
 fn discovery_api(creds: &Credentials,
-                 env_id: Option<&str>,
                  path: &str,
-                 body: Option<&str>)
-                 -> Result<Response, Error> {
-    let path_tail = match env_id {
-        Some(env_id) => "/".to_string() + env_id + path,
-        None => "".to_string(),
-    };
-    let full_url = creds.url.clone() + "/v1/environments" + &path_tail +
-                   "?version=2016-11-07";
+                 request_body: Option<&str>)
+                 -> Result<String, ApiError> {
+    let full_url = creds.url.clone() + path + "?version=2016-11-07";
     let mut headers = Headers::new();
     headers.set(Authorization(Basic {
         username: creds.username.clone(),
         password: Some(creds.password.clone()),
     }));
     let client = Client::with_connector(HttpsConnector::new(TlsClient::new()));
-    match body {
+    let mut response = try!(match request_body {
         Some(body) => {
             client.post(&full_url)
                   .headers(headers)
@@ -159,30 +211,53 @@ fn discovery_api(creds: &Credentials,
                   .send()
         }
         None => client.get(&full_url).headers(headers).send(),
+    });
+    let mut response_body = String::new();
+    try!(response.read_to_string(&mut response_body));
+
+    if response.status.is_success() {
+        Ok(response_body)
+    } else {
+        // The body of service errors usually conforms to:
+        // { "code": 456, "error": "Human readable" }
+        let service_error = match from_str(&response_body) {
+            Ok(se) => se,
+            // If parsing the response body failed, build one.
+            Err(_) => {
+                ServiceError {
+                    code: 0,
+                    error: response_body,
+                }
+            }
+        };
+        let api_error = ApiErrorDetail {
+            status_code: response.status,
+            service_error: service_error,
+        };
+        Err(ApiError::Service(api_error))
     }
 }
 
-pub fn get_envs(creds: &Credentials)
-                -> Result<Environments, Box<std::error::Error>> {
-    let res = try!(discovery_api(&creds, None, "", None));
-    Ok(try!(from_reader(res)))
+pub fn get_envs(creds: &Credentials) -> Result<Environments, ApiError> {
+    let res = try!(discovery_api(&creds, "/v1/environments", None));
+    Ok(try!(from_str(&res)))
 }
 
 pub fn create_env(creds: &Credentials,
                   options: &NewEnvironment)
-                  -> Result<Environment, Box<std::error::Error>> {
-    let mut res = try!(discovery_api(&creds,
-                                     None,
-                                     "",
-                                     Some(&to_string(options).unwrap())));
-    let mut body = String::new();
-    try!(res.read_to_string(&mut body));
-    let env = from_str(&body);
+                  -> Result<Environment, ApiError> {
+    let request_body = to_string(options)
+        .expect("Internal error: failed to convert NewEnvironment into JSON");
+    let res =
+        try!(discovery_api(&creds, "/v1/environments", Some(&request_body)));
+    let env = from_str(&res);
 
     match env {
         Ok(_) => {}
         Err(_) => {
-            println!("POST environments failed, returning: {}", body);
+            println!("POST environments {} failed, returning: {}",
+                     request_body,
+                     res);
         }
     }
     Ok(try!(env))
@@ -190,24 +265,26 @@ pub fn create_env(creds: &Credentials,
 
 pub fn get_collections(creds: &Credentials,
                        env_id: &str)
-                       -> Result<Collections, Box<std::error::Error>> {
-    let res = try!(discovery_api(&creds, Some(env_id), "/collections", None));
-    Ok(try!(from_reader(res)))
+                       -> Result<Collections, ApiError> {
+    let path = "/v1/environments/".to_string() + env_id + "/collections";
+    let res = try!(discovery_api(&creds, &path, None));
+    Ok(try!(from_str(&res)))
 }
 
 pub fn get_collection_detail(creds: &Credentials,
                              env_id: &str,
                              collection_id: &str)
-                             -> Result<Collection, Box<std::error::Error>> {
-    let path = "/collections/".to_string() + collection_id;
-    let res = try!(discovery_api(&creds, Some(env_id), &path, None));
-    Ok(try!(from_reader(res)))
+                             -> Result<Collection, ApiError> {
+    let path = "/v1/environments/".to_string() + env_id + "/collections/" +
+               collection_id;
+    let res = try!(discovery_api(&creds, &path, None));
+    Ok(try!(from_str(&res)))
 }
 
 pub fn get_configurations(creds: &Credentials,
                           env_id: &str)
-                          -> Result<Configurations, Box<std::error::Error>> {
-    let res =
-        try!(discovery_api(&creds, Some(env_id), "/configurations", None));
-    Ok(try!(from_reader(res)))
+                          -> Result<Configurations, ApiError> {
+    let path = "/v1/environments/".to_string() + env_id + "/configurations";
+    let res = try!(discovery_api(&creds, &path, None));
+    Ok(try!(from_str(&res)))
 }
