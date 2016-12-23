@@ -14,6 +14,7 @@ use hyper::header::{Authorization, Basic, Headers};
 use hyper::net::HttpsConnector;
 use hyper_rustls::TlsClient;
 use serde_json::de::from_reader;
+use serde_json::ser::to_string;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
@@ -46,6 +47,14 @@ pub enum Status {
     Active,
     #[serde(rename="pending")]
     Pending,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct NewEnvironment {
+    pub name: String,
+    pub description: Option<String>,
+    pub size: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -126,7 +135,8 @@ pub fn credentials_from_file(creds_file: &str)
 
 fn discovery_api(creds: &Credentials,
                  env_id: Option<&str>,
-                 path: &str)
+                 path: &str,
+                 body: Option<&str>)
                  -> Result<Response, Error> {
     let path_tail = match env_id {
         Some(env_id) => "/".to_string() + env_id + path,
@@ -140,19 +150,37 @@ fn discovery_api(creds: &Credentials,
         password: Some(creds.password.clone()),
     }));
     let client = Client::with_connector(HttpsConnector::new(TlsClient::new()));
-    client.get(&full_url).headers(headers).send()
+    match body {
+        Some(body) => {
+            client.post(&full_url)
+                  .headers(headers)
+                  .body(body)
+                  .send()
+        }
+        None => client.get(&full_url).headers(headers).send(),
+    }
 }
 
 pub fn get_envs(creds: &Credentials)
                 -> Result<Environments, Box<std::error::Error>> {
-    let res = try!(discovery_api(&creds, None, ""));
+    let res = try!(discovery_api(&creds, None, "", None));
+    Ok(try!(from_reader(res)))
+}
+
+pub fn create_env(creds: &Credentials,
+                  options: &NewEnvironment)
+                  -> Result<Environment, Box<std::error::Error>> {
+    let res = try!(discovery_api(&creds,
+                                 None,
+                                 "",
+                                 Some(&to_string(options).unwrap())));
     Ok(try!(from_reader(res)))
 }
 
 pub fn get_collections(creds: &Credentials,
                        env_id: &str)
                        -> Result<Collections, Box<std::error::Error>> {
-    let res = try!(discovery_api(&creds, Some(env_id), "/collections"));
+    let res = try!(discovery_api(&creds, Some(env_id), "/collections", None));
     Ok(try!(from_reader(res)))
 }
 
@@ -161,13 +189,14 @@ pub fn get_collection_detail(creds: &Credentials,
                              collection_id: &str)
                              -> Result<Collection, Box<std::error::Error>> {
     let path = "/collections/".to_string() + collection_id;
-    let res = try!(discovery_api(&creds, Some(env_id), &path));
+    let res = try!(discovery_api(&creds, Some(env_id), &path, None));
     Ok(try!(from_reader(res)))
 }
 
 pub fn get_configurations(creds: &Credentials,
                           env_id: &str)
                           -> Result<Configurations, Box<std::error::Error>> {
-    let res = try!(discovery_api(&creds, Some(env_id), "/configurations"));
+    let res =
+        try!(discovery_api(&creds, Some(env_id), "/configurations", None));
     Ok(try!(from_reader(res)))
 }
