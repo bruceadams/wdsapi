@@ -13,8 +13,9 @@ use hyper::client::response::Response;
 use hyper::header::{Authorization, Basic, Headers};
 use hyper::net::HttpsConnector;
 use hyper_rustls::TlsClient;
-use serde_json::de::from_reader;
+use serde_json::de::{from_reader, from_str};
 use serde_json::ser::to_string;
+use std::io::Read;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
@@ -170,11 +171,21 @@ pub fn get_envs(creds: &Credentials)
 pub fn create_env(creds: &Credentials,
                   options: &NewEnvironment)
                   -> Result<Environment, Box<std::error::Error>> {
-    let res = try!(discovery_api(&creds,
-                                 None,
-                                 "",
-                                 Some(&to_string(options).unwrap())));
-    Ok(try!(from_reader(res)))
+    let mut res = try!(discovery_api(&creds,
+                                     None,
+                                     "",
+                                     Some(&to_string(options).unwrap())));
+    let mut body = String::new();
+    try!(res.read_to_string(&mut body));
+    let env = from_str(&body);
+
+    match env {
+        Ok(_) => {}
+        Err(_) => {
+            println!("POST environments failed, returning: {}", body);
+        }
+    }
+    Ok(try!(env))
 }
 
 pub fn get_collections(creds: &Credentials,
