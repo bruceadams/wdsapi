@@ -9,7 +9,8 @@ extern crate serde_json;
 
 use chrono::{DateTime, UTC};
 use hyper::Client;
-use hyper::header::{Authorization, Basic, Headers};
+use hyper::header::{Authorization, Basic, ContentType, Headers};
+use hyper::mime::{Attr, Mime, SubLevel, TopLevel, Value};
 use hyper::net::HttpsConnector;
 use hyper::status::StatusCode;
 use hyper_rustls::TlsClient;
@@ -205,6 +206,9 @@ fn discovery_api(creds: &Credentials,
     let client = Client::with_connector(HttpsConnector::new(TlsClient::new()));
     let mut response = try!(match request_body {
         Some(body) => {
+            headers.set(ContentType(Mime(TopLevel::Application,
+                                         SubLevel::Json,
+                                         vec![(Attr::Charset, Value::Utf8)])));
             client.post(&full_url)
                   .headers(headers)
                   .body(body)
@@ -214,6 +218,11 @@ fn discovery_api(creds: &Credentials,
     });
     let mut response_body = String::new();
 
+    // We are more interested in the body of the response than any IO error.
+    // Often the service closes the connection fairly abruptly when it is
+    // returning an error response. We get more information from the error
+    // text
+    // sent from the server than we do from an IO error such as CloseNotify.
     if let Err(err) = response.read_to_string(&mut response_body) {
         if response_body.is_empty() {
             return Err(ApiError::Io(err));
@@ -221,6 +230,7 @@ fn discovery_api(creds: &Credentials,
     }
 
     if response.status.is_success() {
+        // 2xx HTTP response codes
         Ok(response_body)
     } else {
         // The body of service errors usually conforms to:
