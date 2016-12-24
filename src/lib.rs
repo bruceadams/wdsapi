@@ -213,7 +213,12 @@ fn discovery_api(creds: &Credentials,
         None => client.get(&full_url).headers(headers).send(),
     });
     let mut response_body = String::new();
-    try!(response.read_to_string(&mut response_body));
+
+    if let Err(err) = response.read_to_string(&mut response_body) {
+        if response_body.is_empty() {
+            return Err(ApiError::Io(err));
+        }
+    }
 
     if response.status.is_success() {
         Ok(response_body)
