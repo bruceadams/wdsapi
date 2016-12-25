@@ -9,8 +9,15 @@ extern crate serde_json;
 
 use chrono::{DateTime, UTC};
 use hyper::Client;
-use hyper::header::{Authorization, Basic, ContentType, Headers};
-use hyper::mime::{Attr, Mime, SubLevel, TopLevel, Value};
+use hyper::header::{Authorization, Basic, ContentType};
+use hyper::method::Method;
+use hyper::method::Method::*;
+use hyper::mime::Attr::Charset;
+use hyper::mime::Mime;
+use hyper::mime::SubLevel::Json;
+use hyper::mime::TopLevel::Application;
+use hyper::mime::Value::Utf8;
+
 use hyper::net::HttpsConnector;
 use hyper::status::StatusCode;
 use hyper_rustls::TlsClient;
@@ -125,7 +132,9 @@ pub struct Configurations {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServiceError {
     pub code: u64,
-    pub error: String,
+    pub error: Option<String>,
+    pub message: Option<String>,
+    pub description: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -169,9 +178,25 @@ impl From<hyper::error::Error> for ApiError {
 
 impl std::fmt::Display for ApiErrorDetail {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(&format!("{}: {}",
-                             self.status_code,
-                             self.service_error.error))
+        let empty_string = String::new();
+        let error_message = self.service_error
+                                .error
+                                .as_ref()
+                                .unwrap_or(self.service_error
+                                               .message
+                                               .as_ref()
+                                               .unwrap_or(&empty_string));
+        match self.service_error.description.as_ref() {
+            Some(description) => {
+                f.write_str(&format!("{}: {}: {}",
+                                     self.status_code,
+                                     error_message,
+                                     description))
+            }
+            None => {
+                f.write_str(&format!("{}: {}", self.status_code, error_message))
+            }
+        }
     }
 }
 
@@ -194,35 +219,35 @@ pub fn credentials_from_file(creds_file: &str)
 }
 
 fn discovery_api(creds: &Credentials,
+                 method: Method,
                  path: &str,
                  request_body: Option<&str>)
                  -> Result<String, ApiError> {
     let full_url = creds.url.clone() + path + "?version=2016-11-07";
-    let mut headers = Headers::new();
-    headers.set(Authorization(Basic {
+    let auth = Authorization(Basic {
         username: creds.username.clone(),
         password: Some(creds.password.clone()),
-    }));
+    });
     let client = Client::with_connector(HttpsConnector::new(TlsClient::new()));
     let mut response = try!(match request_body {
         Some(body) => {
-            headers.set(ContentType(Mime(TopLevel::Application,
-                                         SubLevel::Json,
-                                         vec![(Attr::Charset, Value::Utf8)])));
-            client.post(&full_url)
-                  .headers(headers)
+            let json =
+                ContentType(Mime(Application, Json, vec![(Charset, Utf8)]));
+            client.request(method, &full_url)
+                  .header(auth)
+                  .header(json)
                   .body(body)
                   .send()
         }
-        None => client.get(&full_url).headers(headers).send(),
+        None => client.request(method, &full_url).header(auth).send(),
     });
     let mut response_body = String::new();
 
-    // We are more interested in the body of the response than any IO error.
-    // Often the service closes the connection fairly abruptly when it is
-    // returning an error response. We get more information from the error
-    // text
-    // sent from the server than we do from an IO error such as CloseNotify.
+    // We are more interested in the body of the response than any IO
+    // error. Often the service closes the connection fairly abruptly when
+    // it is returning an error response. We get more information from the
+    // error text sent from the server than we do from an IO error such as
+    // CloseNotify.
     if let Err(err) = response.read_to_string(&mut response_body) {
         if response_body.is_empty() {
             return Err(ApiError::Io(err));
@@ -235,13 +260,17 @@ fn discovery_api(creds: &Credentials,
     } else {
         // The body of service errors usually conforms to:
         // { "code": 456, "error": "Human readable" }
+        // And sometimes to:
+        // { "code": 456, "message": "Summary", "description": "Detail" }
         let service_error = match from_str(&response_body) {
             Ok(se) => se,
             // If parsing the response body failed, build one.
             Err(_) => {
                 ServiceError {
                     code: 0,
-                    error: response_body,
+                    error: None,
+                    message: Some("Unknown service error format".to_string()),
+                    description: Some(response_body),
                 }
             }
         };
@@ -253,36 +282,44 @@ fn discovery_api(creds: &Credentials,
     }
 }
 
-pub fn get_envs(creds: &Credentials) -> Result<Environments, ApiError> {
-    let res = try!(discovery_api(&creds, "/v1/environments", None));
+pub fn get_environments(creds: &Credentials) -> Result<Environments, ApiError> {
+    let res = try!(discovery_api(&creds, Get, "/v1/environments", None));
     Ok(try!(from_str(&res)))
 }
 
-pub fn create_env(creds: &Credentials,
-                  options: &NewEnvironment)
-                  -> Result<Environment, ApiError> {
+pub fn get_environment_detail(creds: &Credentials,
+                              env_id: &str)
+                              -> Result<Environment, ApiError> {
+    let path = "/v1/environments/".to_string() + env_id;
+    let res = try!(discovery_api(&creds, Get, &path, None));
+    Ok(try!(from_str(&res)))
+}
+
+pub fn create_environment(creds: &Credentials,
+                          options: &NewEnvironment)
+                          -> Result<Environment, ApiError> {
     let request_body = to_string(options)
         .expect("Internal error: failed to convert NewEnvironment into JSON");
-    let res =
-        try!(discovery_api(&creds, "/v1/environments", Some(&request_body)));
-    let env = from_str(&res);
+    let res = try!(discovery_api(&creds,
+                                 Post,
+                                 "/v1/environments",
+                                 Some(&request_body)));
+    Ok(try!(from_str(&res)))
+}
 
-    match env {
-        Ok(_) => {}
-        Err(_) => {
-            println!("POST environments {} failed, returning: {}",
-                     request_body,
-                     res);
-        }
-    }
-    Ok(try!(env))
+pub fn delete_environment(creds: &Credentials,
+                          env_id: &str)
+                          -> Result<Environment, ApiError> {
+    let path = "/v1/environments/".to_string() + env_id;
+    let res = try!(discovery_api(&creds, Delete, &path, None));
+    Ok(try!(from_str(&res)))
 }
 
 pub fn get_collections(creds: &Credentials,
                        env_id: &str)
                        -> Result<Collections, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/collections";
-    let res = try!(discovery_api(&creds, &path, None));
+    let res = try!(discovery_api(&creds, Get, &path, None));
     Ok(try!(from_str(&res)))
 }
 
@@ -292,7 +329,7 @@ pub fn get_collection_detail(creds: &Credentials,
                              -> Result<Collection, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/collections/" +
                collection_id;
-    let res = try!(discovery_api(&creds, &path, None));
+    let res = try!(discovery_api(&creds, Get, &path, None));
     Ok(try!(from_str(&res)))
 }
 
@@ -300,6 +337,6 @@ pub fn get_configurations(creds: &Credentials,
                           env_id: &str)
                           -> Result<Configurations, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/configurations";
-    let res = try!(discovery_api(&creds, &path, None));
+    let res = try!(discovery_api(&creds, Get, &path, None));
     Ok(try!(from_str(&res)))
 }
