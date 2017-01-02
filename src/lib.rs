@@ -62,7 +62,8 @@ pub enum Status {
 #[serde(deny_unknown_fields)]
 pub struct NewEnvironment {
     pub name: String,
-    pub description: Option<String>,
+    #[serde(default)]
+    pub description: String,
     pub size: u64,
 }
 
@@ -71,7 +72,8 @@ pub struct NewEnvironment {
 pub struct Environment {
     pub environment_id: String,
     pub name: String,
-    pub description: Option<String>,
+    #[serde(default)]
+    pub description: String,
     pub created: DateTime<UTC>,
     pub updated: DateTime<UTC>,
     pub status: Status,
@@ -98,7 +100,8 @@ pub struct DocumentCounts {
 pub struct Collection {
     pub collection_id: String,
     pub name: String,
-    pub description: Option<String>,
+    #[serde(default)]
+    pub description: String,
     pub created: DateTime<UTC>,
     pub updated: DateTime<UTC>,
     pub status: Status,
@@ -118,7 +121,8 @@ pub struct Collections {
 pub struct Configuration {
     pub configuration_id: String,
     pub name: String,
-    pub description: Option<String>,
+    #[serde(default)]
+    pub description: String,
     pub created: DateTime<UTC>,
     pub updated: DateTime<UTC>,
 }
@@ -132,9 +136,12 @@ pub struct Configurations {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServiceError {
     pub code: u64,
-    pub error: Option<String>,
-    pub message: Option<String>,
-    pub description: Option<String>,
+    #[serde(default)]
+    pub error: String,
+    #[serde(default)]
+    pub message: String,
+    #[serde(default)]
+    pub description: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -178,24 +185,16 @@ impl From<hyper::error::Error> for ApiError {
 
 impl std::fmt::Display for ApiErrorDetail {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let empty_string = String::new();
-        let error_message = self.service_error
-                                .error
-                                .as_ref()
-                                .unwrap_or(self.service_error
-                                               .message
-                                               .as_ref()
-                                               .unwrap_or(&empty_string));
-        match self.service_error.description.as_ref() {
-            Some(description) => {
-                f.write_str(&format!("{}: {}: {}",
-                                     self.status_code,
-                                     error_message,
-                                     description))
-            }
-            None => {
-                f.write_str(&format!("{}: {}", self.status_code, error_message))
-            }
+        let error = &self.service_error.error;
+        let message = &self.service_error.message;
+        let error_message = if error.is_empty() { message } else { error };
+        if self.service_error.description.is_empty() {
+            f.write_str(&format!("{}: {}", self.status_code, error_message))
+        } else {
+            f.write_str(&format!("{}: {}: {}",
+                                 self.status_code,
+                                 error_message,
+                                 self.service_error.description))
         }
     }
 }
@@ -262,18 +261,25 @@ fn discovery_api(creds: &Credentials,
         // { "code": 456, "error": "Human readable" }
         // And sometimes to:
         // { "code": 456, "message": "Summary", "description": "Detail" }
-        let service_error = match from_str(&response_body) {
-            Ok(se) => se,
-            // If parsing the response body failed, build one.
-            Err(_) => {
-                ServiceError {
-                    code: 0,
-                    error: None,
-                    message: Some("Unknown service error format".to_string()),
-                    description: Some(response_body),
-                }
+        let se = from_str(&response_body).unwrap_or(ServiceError {
+            code: 0,
+            error: String::new(),
+            message: String::new(),
+            description: String::new(),
+        });
+        let service_error = if se.error.is_empty() && se.message.is_empty() {
+            // When the response from the service does not match expectations,
+            // generate a ServiceError that wraps the body of the response.
+            ServiceError {
+                code: 0,
+                error: String::new(),
+                message: "Unknown service error format".to_string(),
+                description: response_body.clone(),
             }
+        } else {
+            se
         };
+
         let api_error = ApiErrorDetail {
             status_code: response.status,
             service_error: service_error,
