@@ -217,6 +217,35 @@ pub fn credentials_from_file(creds_file: &str)
     Ok(try!(from_reader(try!(std::fs::File::open(creds_file)))))
 }
 
+// When the response from the service does not match expectations,
+// generate a ServiceError that wraps the body of the response.
+fn unknown_service_error(response_body: &str) -> ServiceError {
+    ServiceError {
+        code: 0,
+        error: String::new(),
+        message: "Unknown service error format".to_string(),
+        description: response_body.to_string(),
+    }
+}
+
+fn service_error(response_body: &str) -> ServiceError {
+    // The body of service errors usually conforms to:
+    // { "code": 456, "error": "Human readable" }
+    // or sometimes to:
+    // { "code": 456, "message": "Summary", "description": "Detail" }
+    let service_error = from_str(response_body)
+        .unwrap_or(unknown_service_error(response_body));
+    // We need some text in either "error" or "message".
+    // It seems like I should be able to encode this restriction into the
+    // type, but I don't know what I'm doing well enough with types and
+    // Serde.
+    if service_error.error.is_empty() && service_error.message.is_empty() {
+        unknown_service_error(response_body)
+    } else {
+        service_error
+    }
+}
+
 fn discovery_api(creds: &Credentials,
                  method: Method,
                  path: &str,
@@ -257,34 +286,10 @@ fn discovery_api(creds: &Credentials,
         // 2xx HTTP response codes
         Ok(response_body)
     } else {
-        // The body of service errors usually conforms to:
-        // { "code": 456, "error": "Human readable" }
-        // And sometimes to:
-        // { "code": 456, "message": "Summary", "description": "Detail" }
-        let se = from_str(&response_body).unwrap_or(ServiceError {
-            code: 0,
-            error: String::new(),
-            message: String::new(),
-            description: String::new(),
-        });
-        let service_error = if se.error.is_empty() && se.message.is_empty() {
-            // When the response from the service does not match expectations,
-            // generate a ServiceError that wraps the body of the response.
-            ServiceError {
-                code: 0,
-                error: String::new(),
-                message: "Unknown service error format".to_string(),
-                description: response_body.clone(),
-            }
-        } else {
-            se
-        };
-
-        let api_error = ApiErrorDetail {
+        Err(ApiError::Service(ApiErrorDetail {
             status_code: response.status,
-            service_error: service_error,
-        };
-        Err(ApiError::Service(api_error))
+            service_error: service_error(&response_body),
+        }))
     }
 }
 
