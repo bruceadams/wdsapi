@@ -1,5 +1,3 @@
-#![feature(proc_macro)]
-
 extern crate chrono;
 extern crate hyper;
 extern crate hyper_rustls;
@@ -62,8 +60,8 @@ pub enum Status {
 #[serde(deny_unknown_fields)]
 pub struct NewEnvironment {
     pub name: String,
-    #[serde(default)]
-    pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub size: u64,
 }
 
@@ -72,8 +70,8 @@ pub struct NewEnvironment {
 pub struct Environment {
     pub environment_id: String,
     pub name: String,
-    #[serde(default)]
-    pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub created: DateTime<UTC>,
     pub updated: DateTime<UTC>,
     pub status: Status,
@@ -97,11 +95,21 @@ pub struct DocumentCounts {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
+pub struct NewCollection {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub configuration_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct Collection {
     pub collection_id: String,
     pub name: String,
-    #[serde(default)]
-    pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub created: DateTime<UTC>,
     pub updated: DateTime<UTC>,
     pub status: Status,
@@ -121,8 +129,8 @@ pub struct Collections {
 pub struct Configuration {
     pub configuration_id: String,
     pub name: String,
-    #[serde(default)]
-    pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub created: DateTime<UTC>,
     pub updated: DateTime<UTC>,
 }
@@ -246,6 +254,7 @@ fn service_error(response_body: &str) -> ServiceError {
     }
 }
 
+// Feels like this should be refactored into smaller parts
 fn discovery_api(creds: &Credentials,
                  method: Method,
                  path: &str,
@@ -341,6 +350,17 @@ pub fn get_collection_detail(creds: &Credentials,
     let path = "/v1/environments/".to_string() + env_id + "/collections/" +
                collection_id;
     let res = try!(discovery_api(&creds, Get, &path, None));
+    Ok(try!(from_str(&res)))
+}
+
+pub fn create_collection(creds: &Credentials,
+                         env_id: &str,
+                         options: &NewCollection)
+                         -> Result<Collection, ApiError> {
+    let path = "/v1/environments/".to_string() + env_id + "/collections";
+    let request_body = to_string(options)
+        .expect("Internal error: failed to convert NewCollection into JSON");
+    let res = try!(discovery_api(&creds, Post, &path, Some(&request_body)));
     Ok(try!(from_str(&res)))
 }
 
