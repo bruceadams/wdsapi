@@ -23,7 +23,7 @@ use serde_json::de::{from_reader, from_str};
 use serde_json::ser::to_string;
 use std::io::Read;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Capacity {
     pub used_bytes: u64,
@@ -33,21 +33,21 @@ pub struct Capacity {
     pub percent_used: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct IndexCapacity {
     pub disk_usage: Capacity,
     pub memory_usage: Capacity,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub enum Deleted {
     #[serde(rename="deleted")]
     Deleted,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub enum Status {
     #[serde(rename="active")]
@@ -56,7 +56,14 @@ pub enum Status {
     Pending,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct DeletedEnvironment {
+    pub environment_id: String,
+    pub status: Deleted,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct NewEnvironment {
     pub name: String,
@@ -65,7 +72,7 @@ pub struct NewEnvironment {
     pub size: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Environment {
     pub environment_id: String,
@@ -79,13 +86,13 @@ pub struct Environment {
     pub index_capacity: Option<IndexCapacity>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Environments {
     pub environments: Vec<Environment>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct DocumentCounts {
     pub available: u64,
@@ -93,7 +100,7 @@ pub struct DocumentCounts {
     pub failed: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct NewCollection {
     pub name: String,
@@ -103,7 +110,7 @@ pub struct NewCollection {
     pub configuration_id: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Collection {
     pub collection_id: String,
@@ -118,13 +125,13 @@ pub struct Collection {
     pub document_counts: Option<DocumentCounts>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Collections {
     pub collections: Vec<Collection>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Configuration {
     pub configuration_id: String,
@@ -135,13 +142,13 @@ pub struct Configuration {
     pub updated: DateTime<UTC>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Configurations {
     pub configurations: Vec<Configuration>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ServiceError {
     pub code: u64,
     #[serde(default)]
@@ -152,7 +159,7 @@ pub struct ServiceError {
     pub description: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Credentials {
     pub url: String,
     pub username: String,
@@ -329,7 +336,7 @@ pub fn create_environment(creds: &Credentials,
 
 pub fn delete_environment(creds: &Credentials,
                           env_id: &str)
-                          -> Result<Environment, ApiError> {
+                          -> Result<DeletedEnvironment, ApiError> {
     let path = "/v1/environments/".to_string() + env_id;
     let res = try!(discovery_api(&creds, Delete, &path, None));
     Ok(try!(from_str(&res)))
