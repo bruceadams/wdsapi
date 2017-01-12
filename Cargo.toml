@@ -1,20 +1,17 @@
 [package]
 name = "wdsapi"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Bruce Adams <bruce.adams@acm.org>"]
 
-# The following dependencies are all 0.x versions.
-# 0.x means they make no promises, so we just grab the latest.
 [dependencies.chrono]
-version = "*"
+version = "0.2"
 features = ["serde"]
 
-[dependencies.hyper]
-version = "*"
-default-features = false
+[dependencies.hyper-rustls]
+git = "https://github.com/bruceadams/hyper-rustls.git"
 
 [dependencies]
-hyper-rustls = "*"
-serde = "*"
-serde_derive = "*"
-serde_json = "*"
+hyper = "0.10"
+serde = "0.8"
+serde_derive = "0.8"
+serde_json = "0.8"
