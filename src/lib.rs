@@ -65,6 +65,20 @@ pub struct DeletedEnvironment {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
+pub struct DeletedCollection {
+    pub collection_id: String,
+    pub status: Deleted,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct DeletedConfiguration {
+    pub configuration_id: String,
+    pub status: Deleted,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct NewEnvironment {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -597,6 +611,16 @@ pub fn create_collection(creds: &Credentials,
     Ok(try!(from_str(&res)))
 }
 
+pub fn delete_collection(creds: &Credentials,
+                         env_id: &str,
+                         collection_id: &str)
+                         -> Result<DeletedCollection, ApiError> {
+    let path = "/v1/environments/".to_string() + env_id + "/collections/" +
+               collection_id;
+    let res = try!(discovery_api(&creds, Delete, &path, None));
+    Ok(try!(from_str(&res)))
+}
+
 pub fn get_configurations(creds: &Credentials,
                           env_id: &str)
                           -> Result<Configurations, ApiError> {
@@ -623,5 +647,15 @@ pub fn create_configuration(creds: &Credentials,
     let request_body = to_string(options)
         .expect("Internal error: failed to convert NewConfiguration into JSON");
     let res = try!(discovery_api(&creds, Post, &path, Some(&request_body)));
+    Ok(try!(from_str(&res)))
+}
+
+pub fn delete_configuration(creds: &Credentials,
+                            env_id: &str,
+                            configuration_id: &str)
+                            -> Result<DeletedConfiguration, ApiError> {
+    let path = "/v1/environments/".to_string() + env_id + "/configurations/" +
+               configuration_id;
+    let res = try!(discovery_api(&creds, Delete, &path, None));
     Ok(try!(from_str(&res)))
 }
