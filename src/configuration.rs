@@ -252,29 +252,28 @@ pub struct Configurations {
     pub configurations: Vec<Configuration>,
 }
 
-
-pub fn get_configurations(creds: &Credentials,
-                          env_id: &str)
-                          -> Result<Configurations, ApiError> {
+pub fn list(creds: &Credentials,
+            env_id: &str)
+            -> Result<Configurations, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/configurations";
     let res = try!(discovery_api(&creds, Get, &path, None));
     Ok(try!(from_str(&res)))
 }
 
-pub fn get_configuration_detail(creds: &Credentials,
-                                env_id: &str,
-                                configuration_id: &str)
-                                -> Result<Configuration, ApiError> {
+pub fn detail(creds: &Credentials,
+              env_id: &str,
+              configuration_id: &str)
+              -> Result<Configuration, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/configurations/" +
                configuration_id;
     let res = try!(discovery_api(&creds, Get, &path, None));
     Ok(try!(from_str(&res)))
 }
 
-pub fn create_configuration(creds: &Credentials,
-                            env_id: &str,
-                            options: &Configuration)
-                            -> Result<Configuration, ApiError> {
+pub fn create(creds: &Credentials,
+              env_id: &str,
+              options: &Configuration)
+              -> Result<Configuration, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/configurations";
     let request_body = to_string(options)
         .expect("Internal error: failed to convert NewConfiguration into JSON");
@@ -282,10 +281,10 @@ pub fn create_configuration(creds: &Credentials,
     Ok(try!(from_str(&res)))
 }
 
-pub fn delete_configuration(creds: &Credentials,
-                            env_id: &str,
-                            configuration_id: &str)
-                            -> Result<DeletedConfiguration, ApiError> {
+pub fn delete(creds: &Credentials,
+              env_id: &str,
+              configuration_id: &str)
+              -> Result<DeletedConfiguration, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/configurations/" +
                configuration_id;
     let res = try!(discovery_api(&creds, Delete, &path, None));

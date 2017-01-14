@@ -57,22 +57,22 @@ pub struct Environments {
     pub environments: Vec<Environment>,
 }
 
-pub fn get_environments(creds: &Credentials) -> Result<Environments, ApiError> {
+pub fn list(creds: &Credentials) -> Result<Environments, ApiError> {
     let res = try!(discovery_api(&creds, Get, "/v1/environments", None));
     Ok(try!(from_str(&res)))
 }
 
-pub fn get_environment_detail(creds: &Credentials,
-                              env_id: &str)
-                              -> Result<Environment, ApiError> {
+pub fn detail(creds: &Credentials,
+              env_id: &str)
+              -> Result<Environment, ApiError> {
     let path = "/v1/environments/".to_string() + env_id;
     let res = try!(discovery_api(&creds, Get, &path, None));
     Ok(try!(from_str(&res)))
 }
 
-pub fn create_environment(creds: &Credentials,
-                          options: &NewEnvironment)
-                          -> Result<Environment, ApiError> {
+pub fn create(creds: &Credentials,
+              options: &NewEnvironment)
+              -> Result<Environment, ApiError> {
     let request_body = to_string(options)
         .expect("Internal error: failed to convert NewEnvironment into JSON");
     let res = try!(discovery_api(&creds,
@@ -82,9 +82,9 @@ pub fn create_environment(creds: &Credentials,
     Ok(try!(from_str(&res)))
 }
 
-pub fn delete_environment(creds: &Credentials,
-                          env_id: &str)
-                          -> Result<DeletedEnvironment, ApiError> {
+pub fn delete(creds: &Credentials,
+              env_id: &str)
+              -> Result<DeletedEnvironment, ApiError> {
     let path = "/v1/environments/".to_string() + env_id;
     let res = try!(discovery_api(&creds, Delete, &path, None));
     Ok(try!(from_str(&res)))

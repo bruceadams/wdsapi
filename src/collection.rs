@@ -51,28 +51,28 @@ pub struct Collections {
 }
 
 
-pub fn get_collections(creds: &Credentials,
-                       env_id: &str)
-                       -> Result<Collections, ApiError> {
+pub fn list(creds: &Credentials,
+            env_id: &str)
+            -> Result<Collections, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/collections";
     let res = try!(discovery_api(&creds, Get, &path, None));
     Ok(try!(from_str(&res)))
 }
 
-pub fn get_collection_detail(creds: &Credentials,
-                             env_id: &str,
-                             collection_id: &str)
-                             -> Result<Collection, ApiError> {
+pub fn detail(creds: &Credentials,
+              env_id: &str,
+              collection_id: &str)
+              -> Result<Collection, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/collections/" +
                collection_id;
     let res = try!(discovery_api(&creds, Get, &path, None));
     Ok(try!(from_str(&res)))
 }
 
-pub fn create_collection(creds: &Credentials,
-                         env_id: &str,
-                         options: &NewCollection)
-                         -> Result<Collection, ApiError> {
+pub fn create(creds: &Credentials,
+              env_id: &str,
+              options: &NewCollection)
+              -> Result<Collection, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/collections";
     let request_body = to_string(options)
         .expect("Internal error: failed to convert NewCollection into JSON");
@@ -80,10 +80,10 @@ pub fn create_collection(creds: &Credentials,
     Ok(try!(from_str(&res)))
 }
 
-pub fn delete_collection(creds: &Credentials,
-                         env_id: &str,
-                         collection_id: &str)
-                         -> Result<DeletedCollection, ApiError> {
+pub fn delete(creds: &Credentials,
+              env_id: &str,
+              collection_id: &str)
+              -> Result<DeletedCollection, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/collections/" +
                collection_id;
     let res = try!(discovery_api(&creds, Delete, &path, None));
