@@ -7,11 +7,9 @@ authors = ["Bruce Adams <bruce.adams@acm.org>"]
 version = "0.2"
 features = ["serde"]
 
-[dependencies.hyper-rustls]
-git = "https://github.com/bruceadams/hyper-rustls.git"
-
 [dependencies]
 hyper = "0.10"
+hyper-rustls = "0.3"
 serde = "0.8"
 serde_derive = "0.8"
 serde_json = "0.8"
