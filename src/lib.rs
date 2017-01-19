@@ -5,7 +5,8 @@ extern crate hyper_rustls;
 extern crate serde_derive;
 extern crate serde_json;
 
-pub mod common;
-pub mod environment;
-pub mod configuration;
 pub mod collection;
+pub mod common;
+pub mod configuration;
+pub mod document;
+pub mod environment;
