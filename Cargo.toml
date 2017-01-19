@@ -1,15 +1,23 @@
 [package]
 name = "wdsapi"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Bruce Adams <bruce.adams@acm.org>"]
 
 [dependencies.chrono]
 version = "0.2"
 features = ["serde"]
 
+[dependencies.multipart]
+version = "*"
+default-features = false
+features = ["client", "hyper"]
+
+[dependencies.hyper]
+version = "0.9"
+default-features = false
+
 [dependencies]
-hyper = "0.10"
-hyper-rustls = "0.3"
+hyper-rustls = "0.2"
 serde = "0.8"
 serde_derive = "0.8"
 serde_json = "0.8"

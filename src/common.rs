@@ -1,5 +1,5 @@
 use hyper;
-use hyper::Client;
+use hyper::client::request::Request;
 use hyper::header::{Authorization, Basic, ContentType};
 use hyper::method::Method;
 use hyper::mime::Attr::Charset;
@@ -11,12 +11,14 @@ use hyper::net::HttpsConnector;
 use hyper::status::StatusCode;
 
 use hyper_rustls::TlsClient;
+use multipart::client::Multipart;
 
 use serde_json;
 use serde_json::de::{from_reader, from_str};
 
 use std;
 use std::io::Read;
+use std::io::Write;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
@@ -53,6 +55,13 @@ pub struct Credentials {
 }
 
 #[derive(Debug)]
+pub enum Body<'a> {
+    Json(&'a str),
+    Filename(&'a str),
+    None,
+}
+
+#[derive(Debug)]
 pub struct ApiErrorDetail {
     pub status_code: StatusCode,
     pub service_error: ServiceError,
@@ -64,6 +73,7 @@ pub enum ApiError {
     SerdeJson(serde_json::error::Error),
     Io(std::io::Error),
     Hyper(hyper::error::Error),
+    HyperParse(hyper::error::ParseError),
 }
 
 impl From<std::io::Error> for ApiError {
@@ -81,6 +91,12 @@ impl From<serde_json::error::Error> for ApiError {
 impl From<hyper::error::Error> for ApiError {
     fn from(err: hyper::error::Error) -> ApiError {
         ApiError::Hyper(err)
+    }
+}
+
+impl From<hyper::error::ParseError> for ApiError {
+    fn from(err: hyper::error::ParseError) -> ApiError {
+        ApiError::HyperParse(err)
     }
 }
 
@@ -107,6 +123,7 @@ impl std::fmt::Display for ApiError {
             ApiError::SerdeJson(ref e) => std::fmt::Display::fmt(e, f),
             ApiError::Io(ref e) => std::fmt::Display::fmt(e, f),
             ApiError::Hyper(ref e) => std::fmt::Display::fmt(e, f),
+            ApiError::HyperParse(ref e) => std::fmt::Display::fmt(e, f),
         }
     }
 }
@@ -115,7 +132,7 @@ impl std::fmt::Display for ApiError {
 pub fn credentials_from_file(creds_file: &str)
                              -> Result<Credentials, ApiError> {
     // I may wish to make the error messages more user friendly here.
-    Ok(try!(from_reader(try!(std::fs::File::open(creds_file)))))
+    Ok(from_reader(std::fs::File::open(creds_file)?)?)
 }
 
 // When the response from the service does not match expectations,
@@ -153,26 +170,35 @@ fn service_error(response_body: &str) -> ServiceError {
 pub fn discovery_api(creds: &Credentials,
                      method: Method,
                      path: &str,
-                     request_body: Option<&str>)
+                     request_body: Body)
                      -> Result<String, ApiError> {
-    let full_url = creds.url.clone() + path + "?version=2016-11-07";
+    let mut url = hyper::Url::parse(&(creds.url.clone() + path))?;
+    url.set_query(Some("version=2016-11-07"));
     let auth = Authorization(Basic {
         username: creds.username.clone(),
         password: Some(creds.password.clone()),
     });
-    let client = Client::with_connector(HttpsConnector::new(TlsClient::new()));
-    let mut response = try!(match request_body {
-        Some(body) => {
+    let mut request =
+        Request::with_connector(method,
+                                url,
+                                &HttpsConnector::new(TlsClient::new()))?;
+    request.headers_mut().set(auth);
+    let mut response = match request_body {
+        Body::Json(body) => {
             let json =
                 ContentType(Mime(Application, Json, vec![(Charset, Utf8)]));
-            client.request(method, &full_url)
-                  .header(auth)
-                  .header(json)
-                  .body(body)
-                  .send()
+            request.headers_mut().set(json);
+            let mut started = request.start()?;
+            started.write_all(body.as_bytes())?;
+            started.send()?
         }
-        None => client.request(method, &full_url).header(auth).send(),
-    });
+        Body::Filename(filename) => {
+            let mut one = Multipart::from_request(request)?;
+            one.write_file("file", filename)?;
+            one.send()?
+        }
+        Body::None => request.start()?.send()?,
+    };
     let mut response_body = String::new();
 
     // We are more interested in the body of the response than any IO

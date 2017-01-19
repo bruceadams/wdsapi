@@ -1,5 +1,5 @@
 use chrono::{DateTime, UTC};
-use common::{ApiError, Credentials, Deleted, Status, discovery_api};
+use common::{ApiError, Body, Credentials, Deleted, Status, discovery_api};
 use hyper::method::Method::{Delete, Get, Post};
 use serde_json::de::from_str;
 use serde_json::ser::to_string;
@@ -58,16 +58,16 @@ pub struct Environments {
 }
 
 pub fn list(creds: &Credentials) -> Result<Environments, ApiError> {
-    let res = try!(discovery_api(&creds, Get, "/v1/environments", None));
-    Ok(try!(from_str(&res)))
+    let res = discovery_api(creds, Get, "/v1/environments", Body::None)?;
+    Ok(from_str(&res)?)
 }
 
 pub fn detail(creds: &Credentials,
               env_id: &str)
               -> Result<Environment, ApiError> {
     let path = "/v1/environments/".to_string() + env_id;
-    let res = try!(discovery_api(&creds, Get, &path, None));
-    Ok(try!(from_str(&res)))
+    let res = discovery_api(creds, Get, &path, Body::None)?;
+    Ok(from_str(&res)?)
 }
 
 pub fn create(creds: &Credentials,
@@ -75,17 +75,17 @@ pub fn create(creds: &Credentials,
               -> Result<Environment, ApiError> {
     let request_body = to_string(options)
         .expect("Internal error: failed to convert NewEnvironment into JSON");
-    let res = try!(discovery_api(&creds,
-                                 Post,
-                                 "/v1/environments",
-                                 Some(&request_body)));
-    Ok(try!(from_str(&res)))
+    let res = discovery_api(creds,
+                            Post,
+                            "/v1/environments",
+                            Body::Json(&request_body))?;
+    Ok(from_str(&res)?)
 }
 
 pub fn delete(creds: &Credentials,
               env_id: &str)
               -> Result<DeletedEnvironment, ApiError> {
     let path = "/v1/environments/".to_string() + env_id;
-    let res = try!(discovery_api(&creds, Delete, &path, None));
-    Ok(try!(from_str(&res)))
+    let res = discovery_api(creds, Delete, &path, Body::None)?;
+    Ok(from_str(&res)?)
 }
