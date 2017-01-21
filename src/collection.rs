@@ -41,6 +41,7 @@ pub struct Collection {
     pub status: Status,
     pub configuration_id: String,
     pub language: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub document_counts: Option<DocumentCounts>,
 }
 

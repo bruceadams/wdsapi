@@ -31,6 +31,7 @@ pub struct FontSetting {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PdfHeading {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fonts: Option<Vec<FontSetting>>,
 }
 
@@ -216,6 +217,7 @@ pub struct Enrichment {
     enrichment: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     ignore_downstream_errors: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     options: Option<EnrichmentOptions>,
 }
 
