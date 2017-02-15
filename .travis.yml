@@ -4,7 +4,7 @@ language: cpp
 compiler: clang
 
 install:
-  - curl -sSf https://sh.rustup.rs | sh -s -- -y --verbose --default-toolchain nightly
+  - curl -sSf https://sh.rustup.rs | sh -s -- -y --verbose
   - PATH=$PATH:$HOME/.cargo/bin
   - rustup target add x86_64-unknown-linux-musl
 
