@@ -1,5 +1,6 @@
 use chrono::{DateTime, UTC};
-use common::{ApiError, Body, Credentials, Deleted, Status, discovery_api};
+use common::{ApiError, Body, Credentials, Deleted, Query, Status,
+             discovery_api};
 use hyper::method::Method::{Delete, Get, Post};
 use serde_json::de::from_str;
 use serde_json::ser::to_string;
@@ -59,7 +60,8 @@ pub struct Environments {
 }
 
 pub fn list(creds: &Credentials) -> Result<Environments, ApiError> {
-    let res = discovery_api(creds, Get, "/v1/environments", Body::None)?;
+    let res =
+        discovery_api(creds, Get, "/v1/environments", Query::None, Body::None)?;
     Ok(from_str(&res)?)
 }
 
@@ -67,7 +69,7 @@ pub fn detail(creds: &Credentials,
               env_id: &str)
               -> Result<Environment, ApiError> {
     let path = "/v1/environments/".to_string() + env_id;
-    let res = discovery_api(creds, Get, &path, Body::None)?;
+    let res = discovery_api(creds, Get, &path, Query::None, Body::None)?;
     Ok(from_str(&res)?)
 }
 
@@ -79,6 +81,7 @@ pub fn create(creds: &Credentials,
     let res = discovery_api(creds,
                             Post,
                             "/v1/environments",
+                            Query::None,
                             Body::Json(&request_body))?;
     Ok(from_str(&res)?)
 }
@@ -87,6 +90,6 @@ pub fn delete(creds: &Credentials,
               env_id: &str)
               -> Result<DeletedEnvironment, ApiError> {
     let path = "/v1/environments/".to_string() + env_id;
-    let res = discovery_api(creds, Delete, &path, Body::None)?;
+    let res = discovery_api(creds, Delete, &path, Query::None, Body::None)?;
     Ok(from_str(&res)?)
 }

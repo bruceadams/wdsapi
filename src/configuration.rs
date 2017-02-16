@@ -1,5 +1,5 @@
 use chrono::{DateTime, UTC};
-use common::{ApiError, Body, Credentials, Deleted, discovery_api};
+use common::{ApiError, Body, Credentials, Deleted, Query, discovery_api};
 use hyper::method::Method::{Delete, Get, Post};
 use serde_json::de::from_str;
 use serde_json::ser::to_string;
@@ -258,7 +258,7 @@ pub fn list(creds: &Credentials,
             env_id: &str)
             -> Result<Configurations, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/configurations";
-    let res = discovery_api(creds, Get, &path, Body::None)?;
+    let res = discovery_api(creds, Get, &path, Query::None, Body::None)?;
     Ok(from_str(&res)?)
 }
 
@@ -268,7 +268,7 @@ pub fn detail(creds: &Credentials,
               -> Result<Configuration, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/configurations/" +
                configuration_id;
-    let res = discovery_api(creds, Get, &path, Body::None)?;
+    let res = discovery_api(creds, Get, &path, Query::None, Body::None)?;
     Ok(from_str(&res)?)
 }
 
@@ -279,7 +279,11 @@ pub fn create(creds: &Credentials,
     let path = "/v1/environments/".to_string() + env_id + "/configurations";
     let request_body = to_string(options)
         .expect("Internal error: failed to convert NewConfiguration into JSON");
-    let res = discovery_api(creds, Post, &path, Body::Json(&request_body))?;
+    let res = discovery_api(creds,
+                            Post,
+                            &path,
+                            Query::None,
+                            Body::Json(&request_body))?;
     Ok(from_str(&res)?)
 }
 
@@ -289,6 +293,6 @@ pub fn delete(creds: &Credentials,
               -> Result<DeletedConfiguration, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/configurations/" +
                configuration_id;
-    let res = discovery_api(creds, Delete, &path, Body::None)?;
+    let res = discovery_api(creds, Delete, &path, Query::None, Body::None)?;
     Ok(from_str(&res)?)
 }

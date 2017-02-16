@@ -1,5 +1,5 @@
 use chrono::{DateTime, UTC};
-use common::{ApiError, Body, Credentials, discovery_api};
+use common::{ApiError, Body, Credentials, Query, discovery_api};
 use hyper::method::Method::{Get, Post};
 use serde_json::de::from_str;
 
@@ -66,7 +66,7 @@ pub fn detail(creds: &Credentials,
     let path = "/v1/environments/".to_string() + env_id + "/collections/" +
                collection_id +
                "/documents/" + document_id;
-    let res = discovery_api(creds, Get, &path, Body::None)?;
+    let res = discovery_api(creds, Get, &path, Query::None, Body::None)?;
     Ok(from_str(&res)?)
 }
 
@@ -77,6 +77,10 @@ pub fn create(creds: &Credentials,
               -> Result<DocumentProcessing, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/collections/" +
                collection_id + "/documents";
-    let res = discovery_api(creds, Post, &path, Body::Filename(filename))?;
+    let res = discovery_api(creds,
+                            Post,
+                            &path,
+                            Query::None,
+                            Body::Filename(filename))?;
     Ok(from_str(&res)?)
 }

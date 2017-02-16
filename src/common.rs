@@ -62,6 +62,22 @@ pub enum Body<'a> {
 }
 
 #[derive(Debug)]
+pub struct QueryParams {
+    pub filter: Option<String>,
+    pub query: Option<String>,
+    pub aggregation: Option<String>,
+    pub count: u64,
+    pub return_hierarchy: Option<String>,
+    pub offset: Option<u64>,
+}
+
+#[derive(Debug)]
+pub enum Query {
+    Query(QueryParams),
+    None,
+}
+
+#[derive(Debug)]
 pub struct ApiErrorDetail {
     pub status_code: StatusCode,
     pub service_error: ServiceError,
@@ -166,14 +182,41 @@ fn service_error(response_body: &str) -> ServiceError {
     }
 }
 
+fn deal_with_query(url: &mut hyper::Url, query: Query) {
+    match query {
+        Query::Query(q) => {
+            url.query_pairs_mut().append_pair("count", &format!("{}", q.count));
+            if let Some(offset) = q.offset {
+                url.query_pairs_mut()
+                   .append_pair("offset", &format!("{}", offset));
+            };
+            if let Some(filter) = q.filter {
+                url.query_pairs_mut().append_pair("filter", &filter);
+            };
+            if let Some(query) = q.query {
+                url.query_pairs_mut().append_pair("query", &query);
+            };
+            if let Some(aggregation) = q.aggregation {
+                url.query_pairs_mut().append_pair("aggregation", &aggregation);
+            };
+            if let Some(return_hierarchy) = q.return_hierarchy {
+                url.query_pairs_mut().append_pair("return", &return_hierarchy);
+            };
+        }
+        Query::None => {}
+    }
+}
+
 // Feels like this should be refactored into smaller parts
 pub fn discovery_api(creds: &Credentials,
                      method: Method,
                      path: &str,
+                     query: Query,
                      request_body: Body)
                      -> Result<String, ApiError> {
     let mut url = hyper::Url::parse(&(creds.url.clone() + path))?;
-    url.set_query(Some("version=2016-11-07"));
+    url.query_pairs_mut().append_pair("version", "2017-02-02");
+    deal_with_query(&mut url, query);
     let auth = Authorization(Basic {
         username: creds.username.clone(),
         password: Some(creds.password.clone()),

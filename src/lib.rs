@@ -11,3 +11,4 @@ pub mod common;
 pub mod configuration;
 pub mod document;
 pub mod environment;
+pub mod query;
