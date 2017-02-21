@@ -50,6 +50,8 @@ pub struct Environment {
     pub status: Status,
     pub read_only: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub index_capacity: Option<IndexCapacity>,
 }
 
