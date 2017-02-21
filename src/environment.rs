@@ -2,6 +2,7 @@ use chrono::{DateTime, UTC};
 use common::{ApiError, Body, Credentials, Deleted, Query, Status,
              discovery_api};
 use hyper::method::Method::{Delete, Get, Post};
+use serde_json::Value;
 use serde_json::de::from_str;
 use serde_json::ser::to_string;
 
@@ -61,6 +62,16 @@ pub struct Environments {
     pub environments: Vec<Environment>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TestDocument {
+    pub configuration_id: String,
+    pub status: String,
+    pub enriched_field_units: u64,
+    pub original_media_type: String,
+    pub snapshots: Vec<Value>,
+    pub notices: Vec<Value>,
+}
+
 pub fn list(creds: &Credentials) -> Result<Environments, ApiError> {
     let res =
         discovery_api(creds, Get, "/v1/environments", Query::None, Body::None)?;
@@ -72,6 +83,15 @@ pub fn detail(creds: &Credentials,
               -> Result<Environment, ApiError> {
     let path = "/v1/environments/".to_string() + env_id;
     let res = discovery_api(creds, Get, &path, Query::None, Body::None)?;
+    Ok(from_str(&res)?)
+}
+
+pub fn preview(creds: &Credentials,
+               env_id: &str,
+               configuration_id: &str)
+               -> Result<TestDocument, ApiError> {
+    let path = "/v1/environments/".to_string() + env_id;
+    let res = discovery_api(creds, Post, &path, Query::None, Body::None)?;
     Ok(from_str(&res)?)
 }
 
