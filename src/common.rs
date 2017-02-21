@@ -27,7 +27,7 @@ pub enum Deleted {
     Deleted,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub enum Status {
     #[serde(rename="active")]
