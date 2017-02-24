@@ -18,6 +18,8 @@ default-features = false
 
 [dependencies]
 hyper-rustls = "0.2"
+lazy_static = "0.1"
 serde = "0.8"
 serde_derive = "0.8"
 serde_json = "0.8"
+rustls = "=0.5.5"

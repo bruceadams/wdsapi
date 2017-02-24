@@ -1,6 +1,8 @@
 extern crate chrono;
 extern crate hyper;
 extern crate hyper_rustls;
+#[macro_use]
+extern crate lazy_static;
 extern crate multipart;
 #[macro_use]
 extern crate serde_derive;

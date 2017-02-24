@@ -88,10 +88,15 @@ pub fn detail(creds: &Credentials,
 
 pub fn preview(creds: &Credentials,
                env_id: &str,
-               configuration_id: &str)
+               configuration_id: &str,
+               filename: &str)
                -> Result<TestDocument, ApiError> {
     let path = "/v1/environments/".to_string() + env_id;
-    let res = discovery_api(creds, Post, &path, Query::None, Body::None)?;
+    let res = discovery_api(creds,
+                            Post,
+                            &path,
+                            Query::None,
+                            Body::Filename(filename))?;
     Ok(from_str(&res)?)
 }
 

@@ -7,7 +7,6 @@ use hyper::mime::Mime;
 use hyper::mime::SubLevel::Json;
 use hyper::mime::TopLevel::Application;
 use hyper::mime::Value::Utf8;
-use hyper::net::HttpsConnector;
 use hyper::status::StatusCode;
 
 use hyper_rustls::TlsClient;
@@ -18,7 +17,6 @@ use serde_json::de::{from_reader, from_str};
 
 use std;
 use std::io::Read;
-use std::io::Write;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
@@ -207,6 +205,14 @@ fn deal_with_query(url: &mut hyper::Url, query: Query) {
     }
 }
 
+lazy_static! {
+    static ref CLIENT: hyper::client::Client =
+        hyper::client::Client::with_connector(
+            hyper::client::Pool::with_connector(
+                Default::default(),
+                hyper::net::HttpsConnector::new(TlsClient::new())));
+}
+
 // Feels like this should be refactored into smaller parts
 pub fn discovery_api(creds: &Credentials,
                      method: Method,
@@ -221,26 +227,27 @@ pub fn discovery_api(creds: &Credentials,
         username: creds.username.clone(),
         password: Some(creds.password.clone()),
     });
-    let mut request =
-        Request::with_connector(method,
-                                url,
-                                &HttpsConnector::new(TlsClient::new()))?;
-    request.headers_mut().set(auth);
     let mut response = match request_body {
         Body::Json(body) => {
             let json =
                 ContentType(Mime(Application, Json, vec![(Charset, Utf8)]));
-            request.headers_mut().set(json);
-            let mut started = request.start()?;
-            started.write_all(body.as_bytes())?;
-            started.send()?
+            CLIENT.request(method, url)
+                  .header(auth)
+                  .header(json)
+                  .body(body)
+                  .send()?
         }
         Body::Filename(filename) => {
+            let mut request =
+                Request::with_connector(method,
+                                        url,
+                                        &hyper::net::HttpsConnector::new(TlsClient::new()))?;
+            request.headers_mut().set(auth);
             let mut one = Multipart::from_request(request)?;
             one.write_file("file", filename)?;
             one.send()?
         }
-        Body::None => request.start()?.send()?,
+        Body::None => CLIENT.request(method, url).header(auth).send()?,
     };
     let mut response_body = String::new();
 
