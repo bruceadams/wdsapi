@@ -4,11 +4,34 @@ use hyper::method::Method::{Delete, Get, Post};
 use serde_json::de::from_str;
 use serde_json::ser::to_string;
 
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub enum DeleteSeverity {
+    #[serde(rename="warning")]
+    Warning,
+    #[serde(rename="error")]
+    Error,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct DeleteNotice {
+    pub notice_id: String,
+    pub created: DateTime<UTC>,
+    pub severity: DeleteSeverity,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step: Option<String>,
+    pub description: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct DeletedConfiguration {
     pub configuration_id: String,
     pub status: Deleted,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notices: Option<Vec<DeleteNotice>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
