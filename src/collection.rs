@@ -32,6 +32,20 @@ pub struct NewCollection {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
+pub struct TrainingStatus {
+    pub total_examples: u64,
+    pub available: bool,
+    pub processing: bool,
+    pub minimum_queries_added: bool,
+    pub minimum_examples_added: bool,
+    pub sufficient_label_diversity: bool,
+    pub notices: u64,
+    pub successfully_trained: String,
+    pub data_updated: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Collection {
     pub collection_id: String,
     pub name: String,
@@ -44,6 +58,8 @@ pub struct Collection {
     pub language: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub document_counts: Option<DocumentCounts>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub training_status: Option<TrainingStatus>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
