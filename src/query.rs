@@ -29,6 +29,6 @@ pub fn query(creds: &Credentials,
     let path = "/v1/environments/".to_string() + env_id + "/collections/" +
                collection_id + "/query";
     let res =
-        discovery_api(creds, Get, &path, Query::Query(query), Body::None)?;
+        discovery_api(creds, Get, &path, Query::Query(query), &Body::None)?;
     Ok(from_str(&res)?)
 }

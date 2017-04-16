@@ -73,8 +73,11 @@ pub struct TestDocument {
 }
 
 pub fn list(creds: &Credentials) -> Result<Environments, ApiError> {
-    let res =
-        discovery_api(creds, Get, "/v1/environments", Query::None, Body::None)?;
+    let res = discovery_api(creds,
+                            Get,
+                            "/v1/environments",
+                            Query::None,
+                            &Body::None)?;
     Ok(from_str(&res)?)
 }
 
@@ -82,7 +85,7 @@ pub fn detail(creds: &Credentials,
               env_id: &str)
               -> Result<Environment, ApiError> {
     let path = "/v1/environments/".to_string() + env_id;
-    let res = discovery_api(creds, Get, &path, Query::None, Body::None)?;
+    let res = discovery_api(creds, Get, &path, Query::None, &Body::None)?;
     Ok(from_str(&res)?)
 }
 
@@ -96,7 +99,7 @@ pub fn preview(creds: &Credentials,
                             Post,
                             &path,
                             Query::None,
-                            Body::Filename(filename))?;
+                            &Body::Filename(filename))?;
     Ok(from_str(&res)?)
 }
 
@@ -109,7 +112,7 @@ pub fn create(creds: &Credentials,
                             Post,
                             "/v1/environments",
                             Query::None,
-                            Body::Json(&request_body))?;
+                            &Body::Json(&request_body))?;
     Ok(from_str(&res)?)
 }
 
@@ -117,6 +120,6 @@ pub fn delete(creds: &Credentials,
               env_id: &str)
               -> Result<DeletedEnvironment, ApiError> {
     let path = "/v1/environments/".to_string() + env_id;
-    let res = discovery_api(creds, Delete, &path, Query::None, Body::None)?;
+    let res = discovery_api(creds, Delete, &path, Query::None, &Body::None)?;
     Ok(from_str(&res)?)
 }

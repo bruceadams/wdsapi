@@ -218,7 +218,7 @@ pub fn discovery_api(creds: &Credentials,
                      method: Method,
                      path: &str,
                      query: Query,
-                     request_body: Body)
+                     request_body: &Body)
                      -> Result<String, ApiError> {
     let mut url = hyper::Url::parse(&(creds.url.clone() + path))?;
     url.query_pairs_mut().append_pair("version", "2017-02-02");
@@ -227,7 +227,7 @@ pub fn discovery_api(creds: &Credentials,
         username: creds.username.clone(),
         password: Some(creds.password.clone()),
     });
-    let mut response = match request_body {
+    let mut response = match *request_body {
         Body::Json(body) => {
             let json =
                 ContentType(Mime(Application, Json, vec![(Charset, Utf8)]));

@@ -66,7 +66,7 @@ pub fn detail(creds: &Credentials,
     let path = "/v1/environments/".to_string() + env_id + "/collections/" +
                collection_id +
                "/documents/" + document_id;
-    let res = discovery_api(creds, Get, &path, Query::None, Body::None)?;
+    let res = discovery_api(creds, Get, &path, Query::None, &Body::None)?;
     Ok(from_str(&res)?)
 }
 
@@ -81,6 +81,6 @@ pub fn create(creds: &Credentials,
                             Post,
                             &path,
                             Query::None,
-                            Body::Filename(filename))?;
+                            &Body::Filename(filename))?;
     Ok(from_str(&res)?)
 }

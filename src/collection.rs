@@ -73,7 +73,7 @@ pub fn list(creds: &Credentials,
             env_id: &str)
             -> Result<Collections, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/collections";
-    let res = discovery_api(creds, Get, &path, Query::None, Body::None)?;
+    let res = discovery_api(creds, Get, &path, Query::None, &Body::None)?;
     Ok(from_str(&res)?)
 }
 
@@ -83,7 +83,7 @@ pub fn detail(creds: &Credentials,
               -> Result<Collection, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/collections/" +
                collection_id;
-    let res = discovery_api(creds, Get, &path, Query::None, Body::None)?;
+    let res = discovery_api(creds, Get, &path, Query::None, &Body::None)?;
     Ok(from_str(&res)?)
 }
 
@@ -98,7 +98,7 @@ pub fn create(creds: &Credentials,
                             Post,
                             &path,
                             Query::None,
-                            Body::Json(&request_body))?;
+                            &Body::Json(&request_body))?;
     Ok(from_str(&res)?)
 }
 
@@ -108,6 +108,6 @@ pub fn delete(creds: &Credentials,
               -> Result<DeletedCollection, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/collections/" +
                collection_id;
-    let res = discovery_api(creds, Delete, &path, Query::None, Body::None)?;
+    let res = discovery_api(creds, Delete, &path, Query::None, &Body::None)?;
     Ok(from_str(&res)?)
 }
