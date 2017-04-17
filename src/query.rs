@@ -1,20 +1,13 @@
 use common::{ApiError, Body, Credentials, Query, QueryParams, discovery_api};
 use hyper::method::Method::Get;
 use serde_json::Value;
-use serde_json::de::from_str;
+use serde_json::from_str;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct QueryResponse {
     pub matching_results: u64,
-    // I do not see any way to apply partial type information into results nor
-    // aggregations.
-    #[serde(default = "value_null")]
-    #[serde(skip_serializing_if = "Value::is_null")]
-    pub results: Value,
-    #[serde(default = "value_null")]
-    #[serde(skip_serializing_if = "Value::is_null")]
-    pub aggregations: Value,
+    pub response: Value,
 }
 
 fn value_null() -> Value {
@@ -28,7 +21,13 @@ pub fn query(creds: &Credentials,
              -> Result<QueryResponse, ApiError> {
     let path = "/v1/environments/".to_string() + env_id + "/collections/" +
                collection_id + "/query";
-    let res =
+    let response =
         discovery_api(creds, Get, &path, Query::Query(query), &Body::None)?;
-    Ok(from_str(&res)?)
+    Ok(QueryResponse {
+        matching_results: match response["matching_results"].as_u64() {
+            Some(n) => n,
+            None => 0,
+        },
+        response: response,
+    })
 }
