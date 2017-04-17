@@ -1,5 +1,6 @@
+use chrono::{DateTime, TimeZone, UTC};
+
 use hyper;
-use hyper::client::request::Request;
 use hyper::header::{Authorization, Basic, ContentType};
 use hyper::method::Method;
 use hyper::mime::Attr::Charset;
@@ -10,13 +11,16 @@ use hyper::mime::Value::Utf8;
 use hyper::status::StatusCode;
 
 use hyper_rustls::TlsClient;
-use multipart::client::Multipart;
+use multipart::client::lazy::Multipart;
 
 use serde_json;
 use serde_json::de::{from_reader, from_str};
+use serde_json::to_string;
 
 use std;
+use std::fs::File;
 use std::io::Read;
+use std::time::UNIX_EPOCH;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
@@ -50,6 +54,13 @@ pub struct Credentials {
     pub url: String,
     pub username: String,
     pub password: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+struct Metadata {
+    filename: String,
+    last_modified: DateTime<UTC>,
 }
 
 #[derive(Debug)]
@@ -146,7 +157,7 @@ impl std::fmt::Display for ApiError {
 pub fn credentials_from_file(creds_file: &str)
                              -> Result<Credentials, ApiError> {
     // I may wish to make the error messages more user friendly here.
-    Ok(from_reader(std::fs::File::open(creds_file)?)?)
+    Ok(from_reader(File::open(creds_file)?)?)
 }
 
 // When the response from the service does not match expectations,
@@ -238,14 +249,19 @@ pub fn discovery_api(creds: &Credentials,
                   .send()?
         }
         Body::Filename(filename) => {
-            let mut request =
-                Request::with_connector(method,
-                                        url,
-                                        &hyper::net::HttpsConnector::new(TlsClient::new()))?;
-            request.headers_mut().set(auth);
-            let mut one = Multipart::from_request(request)?;
-            one.write_file("file", filename)?;
-            one.send()?
+            let file = File::open(filename)?;
+            let modified = file.metadata()?
+                               .modified()?
+                               .duration_since(UNIX_EPOCH)
+                               .expect("Failed to convert time?!");
+            let metadata = Metadata {
+                filename: filename.to_string(),
+                last_modified: UTC.timestamp(modified.as_secs() as i64,
+                                             modified.subsec_nanos()),
+            };
+            Multipart::new().add_stream("file", file, Some(filename), None)
+                .add_text("metadata", to_string(&metadata)?)
+                .client_request_mut(&CLIENT, url, |rb| rb.header(auth))?
         }
         Body::None => CLIENT.request(method, url).header(auth).send()?,
     };
