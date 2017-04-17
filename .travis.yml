@@ -1,7 +1,6 @@
 dist: trusty
 sudo: false
 language: cpp
-compiler: clang
 
 install:
   - curl -sSf https://sh.rustup.rs | sh -s -- -y --verbose
