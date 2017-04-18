@@ -45,10 +45,13 @@ pub enum Body<'a> {
 pub struct QueryParams {
     pub filter: Option<String>,
     pub query: Option<String>,
+    pub natural_language_query: Option<String>,
+    pub passages: Option<bool>,
     pub aggregation: Option<String>,
     pub count: u64,
     pub return_hierarchy: Option<String>,
     pub offset: Option<u64>,
+    pub sort: Option<String>,
 }
 
 #[derive(Debug)]
@@ -125,22 +128,33 @@ pub fn credentials_from_file(creds_file: &str)
 fn deal_with_query(url: &mut hyper::Url, query: Query) {
     match query {
         Query::Query(q) => {
-            url.query_pairs_mut().append_pair("count", &format!("{}", q.count));
-            if let Some(offset) = q.offset {
-                url.query_pairs_mut()
-                   .append_pair("offset", &format!("{}", offset));
-            };
             if let Some(filter) = q.filter {
                 url.query_pairs_mut().append_pair("filter", &filter);
             };
             if let Some(query) = q.query {
                 url.query_pairs_mut().append_pair("query", &query);
             };
+            if let Some(natural_language_query) = q.natural_language_query {
+                url.query_pairs_mut().append_pair("natural_language_query",
+                                                  &natural_language_query);
+            };
+            if let Some(passages) = q.passages {
+                url.query_pairs_mut()
+                   .append_pair("passages", &format!("{}", passages));
+            }
             if let Some(aggregation) = q.aggregation {
                 url.query_pairs_mut().append_pair("aggregation", &aggregation);
             };
+            url.query_pairs_mut().append_pair("count", &format!("{}", q.count));
             if let Some(return_hierarchy) = q.return_hierarchy {
                 url.query_pairs_mut().append_pair("return", &return_hierarchy);
+            };
+            if let Some(offset) = q.offset {
+                url.query_pairs_mut()
+                   .append_pair("offset", &format!("{}", offset));
+            };
+            if let Some(sort) = q.sort {
+                url.query_pairs_mut().append_pair("sort", &sort);
             };
         }
         Query::Config(c) => {
