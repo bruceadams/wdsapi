@@ -8,8 +8,7 @@ version = "0"
 features = ["serde"]
 
 [dependencies.multipart]
-git = "https://github.com/mitsuhiko/multipart.git"
-branch = "feature/hyper-0.10"
+version = "0"
 default-features = false
 features = ["client", "hyper"]
 
