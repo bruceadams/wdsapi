@@ -14,28 +14,11 @@ use hyper_rustls::TlsClient;
 use multipart::client::lazy::Multipart;
 
 use serde_json;
-use serde_json::{Value, from_reader, from_str, to_string};
+use serde_json::{Value, from_reader, to_string};
 
 use std;
 use std::fs::File;
-use std::io::Read;
 use std::time::UNIX_EPOCH;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(deny_unknown_fields)]
-pub enum Deleted {
-    #[serde(rename="deleted")]
-    Deleted,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub enum Status {
-    #[serde(rename="active")]
-    Active,
-    #[serde(rename="pending")]
-    Pending,
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Credentials {
@@ -71,6 +54,7 @@ pub struct QueryParams {
 #[derive(Debug)]
 pub enum Query {
     Query(QueryParams),
+    Config(String),
     None,
 }
 
@@ -159,6 +143,10 @@ fn deal_with_query(url: &mut hyper::Url, query: Query) {
                 url.query_pairs_mut().append_pair("return", &return_hierarchy);
             };
         }
+        Query::Config(c) => {
+            url.query_pairs_mut()
+               .append_pair("configuration_id", &c);
+        }
         Query::None => {}
     }
 }
@@ -185,7 +173,7 @@ pub fn discovery_api(creds: &Credentials,
         username: creds.username.clone(),
         password: Some(creds.password.clone()),
     });
-    let mut response = match *request_body {
+    let response = match *request_body {
         Body::Json(body) => {
             let json =
                 ContentType(Mime(Application, Json, vec![(Charset, Utf8)]));
@@ -213,13 +201,14 @@ pub fn discovery_api(creds: &Credentials,
         Body::None => CLIENT.request(method, url).header(auth).send()?,
     };
 
+    let status = response.status;
     match from_reader(response) {
         Ok(json_body) => {
-            if response.status.is_success() {
+            if status.is_success() {
                 Ok(json_body)
             } else {
                 Err(ApiError::Service(ApiErrorDetail {
-                    status_code: response.status,
+                    status_code: status,
                     service_error: json_body,
                 }))
             }
