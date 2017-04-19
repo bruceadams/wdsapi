@@ -166,6 +166,8 @@ fn deal_with_query(url: &mut hyper::Url, query: Query) {
 }
 
 lazy_static! {
+    static ref TODAY: String = format!("{}", UTC::now().format("%F"));
+
     static ref CLIENT: hyper::client::Client =
         hyper::client::Client::with_connector(
             hyper::client::Pool::with_connector(
@@ -181,7 +183,7 @@ pub fn discovery_api(creds: &Credentials,
                      request_body: &Body)
                      -> Result<Value, ApiError> {
     let mut url = hyper::Url::parse(&(creds.url.clone() + path))?;
-    url.query_pairs_mut().append_pair("version", "2017-02-02");
+    url.query_pairs_mut().append_pair("version", &TODAY);
     deal_with_query(&mut url, query);
     let auth = Authorization(Basic {
         username: creds.username.clone(),
