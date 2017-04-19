@@ -1,6 +1,6 @@
 [package]
 name = "wdsapi"
-version = "2.2.0"
+version = "2.3.0"
 authors = ["Bruce Adams <bruce.adams@acm.org>"]
 
 [dependencies.chrono]
