@@ -1,5 +1,5 @@
 use common::{ApiError, Body, Credentials, Query, discovery_api};
-use hyper::method::Method::{Get, Post};
+use hyper::method::Method::{Delete, Get, Post};
 use serde_json::Value;
 
 pub fn detail(creds: &Credentials,
@@ -11,6 +11,17 @@ pub fn detail(creds: &Credentials,
                collection_id +
                "/documents/" + document_id;
     Ok(discovery_api(creds, Get, &path, Query::None, &Body::None)?)
+}
+
+pub fn delete(creds: &Credentials,
+              env_id: &str,
+              collection_id: &str,
+              document_id: &str)
+              -> Result<Value, ApiError> {
+    let path = "/v1/environments/".to_string() + env_id + "/collections/" +
+               collection_id +
+               "/documents/" + document_id;
+    Ok(discovery_api(creds, Delete, &path, Query::None, &Body::None)?)
 }
 
 pub fn create(creds: &Credentials,
