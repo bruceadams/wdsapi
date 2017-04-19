@@ -26,6 +26,15 @@ pub fn detail(creds: &Credentials,
     Ok(discovery_api(creds, Get, &path, Query::None, &Body::None)?)
 }
 
+pub fn fields(creds: &Credentials,
+              env_id: &str,
+              collection_id: &str)
+              -> Result<Value, ApiError> {
+    let path = "/v1/environments/".to_string() + env_id + "/collections/" +
+               collection_id + "/fields";
+    Ok(discovery_api(creds, Get, &path, Query::None, &Body::None)?)
+}
+
 pub fn create(creds: &Credentials,
               env_id: &str,
               options: &NewCollection)
