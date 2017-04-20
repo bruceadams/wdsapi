@@ -17,8 +17,11 @@ use serde_json;
 use serde_json::{Value, from_reader, to_string};
 
 use std;
+use std::env;
 use std::fs::File;
 use std::time::UNIX_EPOCH;
+
+header! { (XGlobalTransactionID, "X-Global-Transaction-ID") => [String] }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Credentials {
@@ -185,6 +188,8 @@ pub fn discovery_api(creds: &Credentials,
     let mut url = hyper::Url::parse(&(creds.url.clone() + path))?;
     url.query_pairs_mut().append_pair("version", &TODAY);
     deal_with_query(&mut url, query);
+    let txid = XGlobalTransactionID(env::var("X_GLOBAL_TRANSACTION_ID")
+        .unwrap_or_else(|_| "wdscli".to_string()));
     let auth = Authorization(Basic {
         username: creds.username.clone(),
         password: Some(creds.password.clone()),
@@ -194,6 +199,7 @@ pub fn discovery_api(creds: &Credentials,
             let json =
                 ContentType(Mime(Application, Json, vec![(Charset, Utf8)]));
             CLIENT.request(method, url)
+                  .header(txid)
                   .header(auth)
                   .header(json)
                   .body(body)
@@ -212,9 +218,13 @@ pub fn discovery_api(creds: &Credentials,
             };
             Multipart::new().add_stream("file", file, Some(filename), None)
                 .add_text("metadata", to_string(&metadata)?)
-                .client_request_mut(&CLIENT, url, |rb| rb.header(auth))?
+                .client_request_mut(&CLIENT,
+                                    url,
+                                    |rb| rb.header(txid).header(auth))?
         }
-        Body::None => CLIENT.request(method, url).header(auth).send()?,
+        Body::None => {
+            CLIENT.request(method, url).header(txid).header(auth).send()?
+        }
     };
 
     let status = response.status;

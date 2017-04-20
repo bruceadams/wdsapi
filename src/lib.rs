@@ -1,4 +1,5 @@
 extern crate chrono;
+#[macro_use]
 extern crate hyper;
 extern crate hyper_rustls;
 #[macro_use]
