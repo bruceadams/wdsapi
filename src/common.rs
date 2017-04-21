@@ -105,8 +105,16 @@ impl From<hyper::error::ParseError> for ApiError {
 
 impl std::fmt::Display for ApiErrorDetail {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(&to_string(&self.service_error)
-            .expect("failed to format error"))
+        // A bit of monkey business to supress the occasional stack trace.
+        let no_stack = match self.service_error.as_object() {
+            Some(o) => {
+                let mut fixup = o.clone();
+                fixup.remove("stack");
+                Value::Object(fixup)
+            }
+            None => self.service_error.clone(),
+        };
+        f.write_str(&to_string(&no_stack).expect("failed to format error"))
     }
 }
 
