@@ -17,8 +17,9 @@ use serde_json;
 use serde_json::{Value, from_reader, to_string};
 
 use std;
-use std::env;
+use std::{env, fmt};
 use std::fs::File;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::UNIX_EPOCH;
 
 header! { (XGlobalTransactionID, "X-Global-Transaction-ID") => [String] }
@@ -178,12 +179,22 @@ fn deal_with_query(url: &mut hyper::Url, query: Query) {
 
 lazy_static! {
     static ref TODAY: String = format!("{}", UTC::now().format("%F"));
+    static ref TX_ID_BASE: String = env::var("X_GLOBAL_TRANSACTION_ID")
+        .unwrap_or_else(|_| "wdsapi".to_string());
+    static ref SEQ: AtomicUsize = AtomicUsize::new(0);
 
     static ref CLIENT: hyper::client::Client =
         hyper::client::Client::with_connector(
             hyper::client::Pool::with_connector(
                 Default::default(),
                 hyper::net::HttpsConnector::new(TlsClient::new())));
+}
+
+impl fmt::Display for TX_ID_BASE {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&**self, f)
+    }
 }
 
 // Feels like this should be refactored into smaller parts
@@ -196,8 +207,10 @@ pub fn discovery_api(creds: &Credentials,
     let mut url = hyper::Url::parse(&(creds.url.clone() + path))?;
     url.query_pairs_mut().append_pair("version", &TODAY);
     deal_with_query(&mut url, query);
-    let txid = XGlobalTransactionID(env::var("X_GLOBAL_TRANSACTION_ID")
-        .unwrap_or_else(|_| "wdscli".to_string()));
+    let txid = XGlobalTransactionID(format!("{}-{}",
+                                            TX_ID_BASE,
+                                            SEQ.fetch_add(1,
+                                                          Ordering::Relaxed)));
     let auth = Authorization(Basic {
         username: creds.username.clone(),
         password: Some(creds.password.clone()),
