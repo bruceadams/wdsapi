@@ -1,6 +1,6 @@
 [package]
 name = "wdsapi"
-version = "2.4.0"
+version = "2.4.1"
 authors = ["Bruce Adams <bruce.adams@acm.org>"]
 
 [dependencies.chrono]
@@ -19,6 +19,6 @@ default-features = false
 [dependencies]
 hyper-rustls = "0"
 lazy_static = "0"
-serde = "0"
-serde_derive = "0"
-serde_json = "0"
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
